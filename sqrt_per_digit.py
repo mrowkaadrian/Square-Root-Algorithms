@@ -1,5 +1,45 @@
-import datetime
 import time
+
+
+def bd_square(bd):
+    comma_existed = False
+    if ',' in bd:
+        from_end = 2*(len(bd) - (bd.index(',') + 1))
+        bd.remove(',')
+        comma_existed = True
+
+    it = len(bd)
+    it2 = 0
+    numbers_to_sum = []
+    while it > 0:
+        it = it - 1
+        numbers_to_sum.append(bd.copy())
+        bd_multiply(numbers_to_sum[it2], bd[it])
+    # -- tutaj nastepuje dodanie zer w tablicy po wyniku, aby uzyskac przesuniecie
+        for i in range(it2):
+            numbers_to_sum[it2].append('0')
+    # --
+        it2 = it2 + 1
+
+    square_result = bd_sum_arrays(numbers_to_sum)
+
+    if comma_existed:
+        square_result.insert(-from_end, ',')
+
+    return square_result
+
+
+def bd_sum_arrays(aoa):     # aoa = array of arrays
+    sum_result = []
+    for number in aoa:
+        sum_result = bd_add(sum_result, number)
+    return sum_result
+
+
+def check_result(sq_result, expected):
+    if '' in sq_result:
+        sq_result.remove('')
+    return bd_subtract(sq_result, expected)
 
 
 def fill_array(array_name, filename):
@@ -17,7 +57,9 @@ def bd_multiply(bd, number):         # mnozy wielka liczbe przez cyfre z zakresu
     rest = 0
     while it > 0:
         it = it - 1
-        new_digit = int((bd[it] * number) + rest)
+        if bd[it] == ',':
+            continue
+        new_digit = int((int(bd[it]) * int(number)) + rest)
         if new_digit > 9:
             rest = int(new_digit / 10)
             new_digit = new_digit - rest * 10
@@ -28,36 +70,96 @@ def bd_multiply(bd, number):         # mnozy wielka liczbe przez cyfre z zakresu
         bd.insert(0, rest)
 
 
-def bd_subtract(big_decimal1, big_decimal2):
-    sub_result = big_decimal1.copy()
-    bd1 = big_decimal1.copy()
-    bd2 = big_decimal2.copy()
-    while len(bd1) != len(bd2):
-        if len(bd1) > len(bd2):
-            bd2.insert(0, '0')
-        if len(bd1) < len(bd2):
-            bd1.insert(0, '0')
+def bd_add(bd1, bd2):
+    commas_existed = False
+    bds = bd_align(bd1, bd2)
+    bd1 = bds[0]
+    bd2 = bds[1]
+    if ',' in bd1:
+        if ',' in bd2:
+            comma_index = bd1.index(',')
+            bd1.remove(',')
+            bd2.remove(',')
+            commas_existed = True
 
-    it1 = len(bd1)
-    it2 = len(bd2)
-    if it1 < it2:
-        print("BLAD: Liczba ujemna")
-        return 0
+    it = len(bd1)
+    carry = 0
+    while it > 0:
+        it = it - 1
+        if int(bd1[it]) + int(bd2[it]) + carry >= 10:
+            bd1[it] = (int(bd1[it]) + int(bd2[it]) + carry) % 10
+            carry = 1
+        else:
+            bd1[it] = int(bd1[it]) + int(bd2[it]) + carry
+            carry = 0
+
+    if commas_existed:
+        bd1.insert(comma_index, ',')
+        bd2.insert(comma_index, ',')
+
+    if carry == 1:
+        bd1.insert(0, '1')
+
+    return bd1
+
+
+def bd_align(bd1, bd2):
+    commas_existed = False
+
+    if ',' in bd1 and ',' not in bd2:
+        bd2.append(',')
+
+    if ',' not in bd1 and ',' in bd2:
+        bd1.append(',')
+
+    if ',' in bd1 and ',' in bd2:
+        commas_existed = True
+        comma_difference = bd1.index(',') - bd2.index(',')
+        zeros_before = [0] * abs(comma_difference)
+        if comma_difference > 0:
+            bd2 = zeros_before + bd2
+        if comma_difference < 0:
+            bd1 = zeros_before + bd1
+
+    len_difference = len(bd1) - len(bd2)
+    zeros = [0] * abs(len_difference)
+    if commas_existed:
+        if len_difference > 0:
+            bd2 = bd2 + zeros
+        if len_difference < 0:
+            bd1 = bd1 + zeros
+    else:
+        if len_difference > 0:
+            bd2 = zeros + bd2
+        if len_difference < 0:
+            bd1 = zeros + bd1
+    return [bd1, bd2]
+
+
+def bd_subtract(big_decimal1, big_decimal2):
+    bds = bd_align(big_decimal1, big_decimal2)
+    bd1 = bds[0]
+    bd2 = bds[1]
+    sub_result = bd1.copy()
+
+    it = len(bd1)
+
     borrow = 0
-    while it2 > 0:
-        it1 = it1 - 1
-        it2 = it2 - 1
-        if int(bd1[it1]) < int(bd2[it2]):
-            sub_result[it1] = int(bd1[it1]) + 10 - int(bd2[it2]) - borrow
+    while it > 0:
+        it = it - 1
+        if bd1[it] == ',' and bd2[it] == ',':
+            continue
+        if int(bd1[it]) < int(bd2[it]):
+            sub_result[it] = int(bd1[it]) + 10 - int(bd2[it]) - borrow
             borrow = 1
         else:
-            new_digit = int(bd1[it1]) - int(bd2[it2]) - borrow
+            new_digit = int(bd1[it]) - int(bd2[it]) - borrow
             if new_digit < 0:
                 new_digit = 9
                 borrow = 1
-                sub_result[it1] = new_digit
+                sub_result[it] = new_digit
                 continue
-            sub_result[it1] = new_digit
+            sub_result[it] = new_digit
             borrow = 0
 
     return sub_result
@@ -148,7 +250,6 @@ def my_sqrt(big_decimal, result_arr):
         r = bd_subtract(c, y)
 
     result_arr.append(",")
-    #print("\nr = " + str(r))
 
     # obliczanie wartosci po przecinku:
 
@@ -170,6 +271,9 @@ def my_sqrt(big_decimal, result_arr):
         else:
             break
 
+    if result_arr.index(',') == len(result_arr) - 1:
+        result_arr.remove(',')
+
 
 array = []
 result = []
@@ -185,4 +289,17 @@ print("\nCzas:  " + str(time.time()-time_start) + "s")
 
 print("Wynik:")
 for val in result:
-    print(val, sep=' ', end='', flush=True)
+    print(val, sep=' ', end='')
+
+squared = bd_square(result)
+
+print("       ")
+
+for val in squared:
+    print(val, sep=' ', end='')
+
+print("\nPomyłka o:")
+err = check_result(array, squared)
+
+for val in err:
+    print(val, sep=' ', end='')
